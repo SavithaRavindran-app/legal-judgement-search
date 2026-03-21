@@ -5,6 +5,7 @@ import com.example.LegalJudgement.model.CrimeResult;
 import com.example.LegalJudgement.model.Law;
 import com.example.LegalJudgement.repository.LawRepository;
 import com.example.LegalJudgement.service.LawService;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,22 +30,39 @@ public class SearchController {
 
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Law>> search(@RequestParam String keyword) {
-        List<Law> results = lawService.searchCrime(keyword);
-        if (results.isEmpty()) {
-            ApiResponse<Law> response = new ApiResponse<>
-                    (HttpStatus.NOT_FOUND.value(),
-                    "No results found for: " + keyword,
-                    Collections.emptyList()
+    public ResponseEntity<ApiResponse<Law>> search(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(defaultValue = "crime") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortOrder) {
+
+        Page<Law> resultPage = lawService.searchCrime(keyword, page, size, sortBy, sortOrder);
+
+        if (resultPage.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    new ApiResponse<>(
+                            404,
+                            "No results found",
+                            Collections.emptyList(),
+                            page,
+                            size,
+                            0,
+                            0
+                    )
             );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }else {
-            ApiResponse<Law> response = new ApiResponse<>
-                    (HttpStatus.OK.value(),
-                            "Results found for: " + keyword,
-                            results
-                    );
-            return ResponseEntity.ok(response);
         }
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        200,
+                        "Success",
+                        resultPage.getContent(),
+                        resultPage.getNumber(),
+                        resultPage.getSize(),
+                        resultPage.getTotalElements(),
+                        resultPage.getTotalPages()
+                )
+        );
     }
 }
